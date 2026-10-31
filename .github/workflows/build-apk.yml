@@ -1,0 +1,54 @@
+name: Build REX Team APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: |
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '8.7'
+
+      - name: Extract Android project
+        run: |
+          unzip -q REX_Team_Android_Source.zip -d source
+
+      - name: Build APK
+        run: |
+          PROJECT_DIR="$(dirname "$(find source -type f \( -name settings.gradle -o -name settings.gradle.kts \) -print -quit)")"
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "Android Gradle project not found"
+            exit 1
+          fi
+          cd "$PROJECT_DIR"
+          gradle assembleDebug --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: REX-Team-APK
+          path: source/**/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
